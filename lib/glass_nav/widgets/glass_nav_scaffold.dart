@@ -48,6 +48,12 @@ class _GlassNavScaffoldState extends State<GlassNavScaffold>
     initialIndex: widget.initialIndex,
   );
 
+  // Drops taps that arrive too soon after the previous one — guards against
+  // two-finger drumming on the bar, which would otherwise restart the jump
+  // animation on every press and look like a flicker.
+  static const _tapDebounce = Duration(milliseconds: 150);
+  DateTime _lastTapAt = DateTime.fromMillisecondsSinceEpoch(0);
+
   @override
   void dispose() {
     _controller.dispose();
@@ -55,12 +61,12 @@ class _GlassNavScaffoldState extends State<GlassNavScaffold>
   }
 
   void _handleTap(int index) {
-    if (index == _controller.currentIndex) {
-      // Hook for "scroll to top" — left to the caller via onTabChanged.
-      widget.onTabChanged?.call(index);
-      return;
-    }
-    _controller.jumpTo(index).then((_) => widget.onTabChanged?.call(index));
+    final now = DateTime.now();
+    if (now.difference(_lastTapAt) < _tapDebounce) return;
+    _lastTapAt = now;
+
+    widget.onTabChanged?.call(index);
+    _controller.jumpTo(index);
   }
 
   @override
